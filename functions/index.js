@@ -60,7 +60,7 @@ const validateFirebaseIdToken = async (req, res, next) => {
   app.use(validateFirebaseIdToken);
   app.get('/hello', (req, res) => {
     // @ts-ignore
-    res.send(`Hello ${req.user.name}`);
+    res.status(200).json({"name": `${req.user.name}`});
   });
   
   // This HTTPS endpoint can only be accessed by your Firebase Users.

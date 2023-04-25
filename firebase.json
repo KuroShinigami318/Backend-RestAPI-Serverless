@@ -17,5 +17,10 @@
         "npm --prefix \"$RESOURCE_DIR\" run lint"
       ]
     }
-  ]
+  ],
+  "emulators": {
+    "ui": {
+      "enabled": false
+    }
+  }
 }
