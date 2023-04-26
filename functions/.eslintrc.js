@@ -13,8 +13,10 @@ module.exports = {
   rules: {
     'no-restricted-globals': ['error', 'name', 'length'],
     'prefer-arrow-callback': 'error',
-    'max-len': ['error', {'code': 120}],
+    'max-len': ['error', {'code': 150}],
     'quotes': ['error', 'single', {'avoidEscape': true, 'allowTemplateLiterals': true}],
+    'indent': 'off',
+    'new-cap': 0,
   },
   overrides: [
     {

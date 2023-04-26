@@ -2,6 +2,8 @@ const functions = require('firebase-functions');
 const express = require('express');
 const cookieParser = require('cookie-parser')();
 const cors = require('cors')({origin: true});
+const puppeteer = require('puppeteer');
+
 const app = express();
 
 // The Firebase Admin SDK to access Firestore.
@@ -63,10 +65,93 @@ app.get('/hello', (req, res) => {
   res.status(200).json({'name': `${req.user.name}`});
 });
 
+const Init = async (oToolObj) => {
+  oToolObj.browser = await puppeteer.launch({
+    headless: true,
+    timeout: 20000,
+    ignoreHTTPSErrors: true,
+    slowMo: 0,
+    args: [
+      '--disable-gpu',
+      '--disable-dev-shm-usage',
+      '--disable-setuid-sandbox',
+      '--no-first-run',
+      '--no-sandbox',
+      '--no-zygote',
+      '--window-size=1280,720',
+    ],
+  });
+
+  oToolObj.page = await oToolObj.browser.newPage();
+  await oToolObj.page.setViewport({width: 1280, height: 720});
+  // Change the user agent of the scraper
+  await oToolObj.page.setUserAgent(
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36',
+  );
+};
+
+const Login = async (page, oError, id, pass) => {
+  try {
+    await page.goto('http://thongtindaotao.sgu.edu.vn/', {
+      waitUntil: 'domcontentloaded',
+    });
+
+    // Type into id and password
+    await page.type('#ctl00_ContentPlaceHolder1_ctl00_ucDangNhap_txtTaiKhoa', id);
+    await page.type('#ctl00_ContentPlaceHolder1_ctl00_ucDangNhap_txtMatKhau', pass);
+
+    // Wait and click on sign in button
+    const loginButtonSelector = '#ctl00_ContentPlaceHolder1_ctl00_ucDangNhap_btnDangNhap';
+    await page.waitForSelector(loginButtonSelector);
+    await page.click(loginButtonSelector);
+
+    const checkCondition = await page.waitForSelector('#ctl00_Header1_Logout1_lbtnLogOut', {hidden: true});
+    if (checkCondition == null) {
+      return false;
+    }
+    return true;
+  } catch (error) {
+    functions.logger.error('Error while login: ', error);
+    oError.error = error;
+    return false;
+  }
+};
+
+app.post('/login', async (req, res) => {
+  const tool = {browser: {}, page: {}};
+  const Result = {error: {}};
+  await Init(tool);
+  const isSuccess = await Login(tool.page, Result, req.body.id, req.body.pass);
+  await tool.page.close();
+  await tool.browser.close();
+  if (!isSuccess) {
+    if (Result.error == undefined) {
+      res.status(401).send('Login failed! invalid id or password!');
+    } else {
+      res.status(401).send(`Fatal Error: ${Result.error}`);
+    }
+  }
+  res.status(200).send('Login Successfully!');
+});
+
+app.post('/tkb', async (req, res) => {
+  const tool = {browser: {}, page: {}};
+  const Error = {error: {}};
+  await Init(tool);
+  const isSuccess = await Login(tool.page, Error, req.body.id, req.body.pass);
+  if (!isSuccess) {
+    await tool.browser.close();
+    res.status(401).send('Login failed! invalid id or password!');
+  }
+
+  await tool.browser.close();
+  res.status(200);
+});
+
 // This HTTPS endpoint can only be accessed by your Firebase Users.
 // Requests need to be authorized by providing an `Authorization` HTTP header
 // with value `Bearer <Firebase ID Token>`.
 exports.app = functions.runWith({
-  enforceAppCheck: true, // Requests without valid App Check tokens will be rejected.
-})
-    .https.onRequest(app);
+  timeoutSeconds: 120,
+  memory: '512MB' || '2GB',
+}).https.onRequest(app);
