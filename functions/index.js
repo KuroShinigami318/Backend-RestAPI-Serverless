@@ -149,16 +149,21 @@ app.post('/login', async (req, res) => {
 
 app.post('/tkb', async (req, res) => {
   const tool = {browser: {}, page: {}};
-  const Error = {error: {}};
+  const Error = {error: ''};
   await Init(tool);
   const isSuccess = await Login(tool.page, Error, req.body.id, req.body.pass);
   if (!isSuccess) {
     await tool.browser.close();
-    res.status(401).send('Login failed! invalid id or password!');
+    if (Result.error == '') {
+      res.status(401).send('Login failed! invalid id or password!');
+    } else {
+      res.status(401).send(`Fatal Error: ${JSON.stringify(Result.error)}`);
+    }
+    return;
   }
 
   await tool.browser.close();
-  res.status(200);
+  res.status(200).json();
 });
 
 // This HTTPS endpoint can only be accessed by your Firebase Users.
