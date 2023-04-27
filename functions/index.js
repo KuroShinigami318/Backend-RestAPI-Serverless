@@ -138,26 +138,26 @@ app.post('/login', async (req, res) => {
   await tool.browser.close();
   if (!isSuccess) {
     if (Result.error == '') {
-      res.status(401).send('Login failed! invalid id or password!');
+      res.status(401).json({'Result': 'Login failed! invalid id or password!'});
     } else {
-      res.status(401).send(`Fatal Error: ${JSON.stringify(Result.error)}`);
+      res.status(401).json({'Result': `Fatal Error: ${JSON.stringify(Result.error)}`});
     }
     return;
   }
-  res.status(200).send('Login Successfully!');
+  res.status(200).json({'Result': 'Login Successfully!'});
 });
 
 app.post('/tkb', async (req, res) => {
   const tool = {browser: {}, page: {}};
-  const Error = {error: ''};
+  const Result = {error: ''};
   await Init(tool);
   const isSuccess = await Login(tool.page, Error, req.body.id, req.body.pass);
   if (!isSuccess) {
     await tool.browser.close();
     if (Result.error == '') {
-      res.status(401).send('Login failed! invalid id or password!');
+      res.status(401).json({'Result': 'Login failed! invalid id or password!'});
     } else {
-      res.status(401).send(`Fatal Error: ${JSON.stringify(Result.error)}`);
+      res.status(401).json({'Result': `Fatal Error: ${JSON.stringify(Result.error)}`});
     }
     return;
   }
