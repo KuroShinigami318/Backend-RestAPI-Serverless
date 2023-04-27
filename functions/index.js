@@ -65,6 +65,18 @@ app.get('/hello', (req, res) => {
   res.status(200).json({'name': `${req.user.name}`});
 });
 
+const IsAny = (iConditionToCheck, iListCondiTion) => {
+  let result = false;
+  iListCondiTion.forEach(
+    (current) => {
+      if (iConditionToCheck.includes(current)) {
+        result = true;
+        return;
+      }
+    });
+  return result;
+};
+
 const Init = async (oToolObj) => {
   oToolObj.browser = await puppeteer.launch({
     headless: true,
@@ -105,11 +117,11 @@ const Login = async (page, oError, id, pass) => {
     await page.waitForSelector(loginButtonSelector);
     await page.click(loginButtonSelector);
 
-    const checkCondition = await page.waitForSelector('#ctl00_Header1_Logout1_lbtnLogOut', {hidden: true});
-    if (checkCondition == null) {
-      return false;
-    }
-    return true;
+    const checkCondition = await page.waitForSelector('#ctl00_Header1_Logout1_lbtnLogOut');
+    const condition = await checkCondition.evaluate((node) => node.innerText);
+    const listCondition = ['Thoát', 'Exit'];
+
+    return IsAny(condition, listCondition);
   } catch (error) {
     functions.logger.error('Error while login: ', error);
     oError.error = error;
@@ -119,17 +131,18 @@ const Login = async (page, oError, id, pass) => {
 
 app.post('/login', async (req, res) => {
   const tool = {browser: {}, page: {}};
-  const Result = {error: {}};
+  const Result = {error: ''};
   await Init(tool);
   const isSuccess = await Login(tool.page, Result, req.body.id, req.body.pass);
   await tool.page.close();
   await tool.browser.close();
   if (!isSuccess) {
-    if (Result.error == undefined) {
+    if (Result.error == '') {
       res.status(401).send('Login failed! invalid id or password!');
     } else {
-      res.status(401).send(`Fatal Error: ${Result.error}`);
+      res.status(401).send(`Fatal Error: ${JSON.stringify(Result.error)}`);
     }
+    return;
   }
   res.status(200).send('Login Successfully!');
 });
