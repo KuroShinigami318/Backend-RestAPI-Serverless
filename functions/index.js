@@ -77,6 +77,11 @@ const IsAny = (iConditionToCheck, iListCondiTion) => {
   return result;
 };
 
+const CleanupAndReturn = (cleanupCallBack, returnValue) => {
+  cleanupCallBack();
+  return returnValue;
+}
+
 const Init = async (oToolObj) => {
   oToolObj.browser = await puppeteer.launch({
     headless: true,
@@ -147,23 +152,28 @@ app.post('/login', async (req, res) => {
   res.status(200).json({'Result': 'Login Successfully!'});
 });
 
-app.post('/tkb', async (req, res) => {
+app.post('/all', async (req, res) => {
   const tool = {browser: {}, page: {}};
   const Result = {error: ''};
+  let returnError = 1;
   await Init(tool);
-  const isSuccess = await Login(tool.page, Error, req.body.id, req.body.pass);
-  if (!isSuccess) {
+  const cleanup = async () => {
     await tool.browser.close();
+  };
+  const isSuccess = await Login(tool.page, Result, req.body.id, req.body.pass);
+  if (!isSuccess) {
     if (Result.error == '') {
       res.status(401).json({'Result': 'Login failed! invalid id or password!'});
+      returnError = 0;
     } else {
       res.status(401).json({'Result': `Fatal Error: ${JSON.stringify(Result.error)}`});
+      returnError = -1;
     }
-    return;
+    return CleanupAndReturn(cleanup, returnError);
   }
 
-  await tool.browser.close();
   res.status(200).json();
+  return CleanupAndReturn(cleanup, returnError);
 });
 
 // This HTTPS endpoint can only be accessed by your Firebase Users.
