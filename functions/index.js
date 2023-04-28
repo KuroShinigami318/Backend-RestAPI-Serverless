@@ -3,6 +3,7 @@ const express = require('express');
 const cookieParser = require('cookie-parser')();
 const cors = require('cors')({origin: true});
 const puppeteer = require('puppeteer');
+const moment = require('moment');
 
 const app = express();
 
@@ -134,6 +135,109 @@ const Login = async (page, oError, id, pass) => {
   }
 };
 
+const GetTimeTable = async (page, oResult) => {
+  try {
+    oResult.ttb = {};
+
+    await page.goto('http://thongtindaotao.sgu.edu.vn/default.aspx?page=thoikhoabieu', {
+      waitUntil: 'domcontentloaded',
+    });
+
+    const note = await page.waitForSelector('#ctl00_ContentPlaceHolder1_ctl00_lblNote');
+    const noteText = await note.evaluate((node) => node.innerText);
+    const noteArray = noteText.split(' ');
+    let startDate = noteArray[noteArray.length - 1];
+    startDate = moment(startDate + '+07:00', 'DD/MM/YYYYZ');
+    const startDateJSON = startDate.toISOString();
+    const endDateJSON = startDate.add(15, 'w').toISOString();
+    oResult.ttb.startDate = startDateJSON;
+    oResult.ttb.endDate = endDateJSON;
+
+    const trList = await page.$$('.grid-roll2 > table');
+    let subjects = [];
+    let daysFromSubject = {};
+    let startSlotFromSubject = {};
+    let sumSlotFromSubject = {};
+    let roomFromSubject = {};
+    for (let i = 1; i <= trList.length; i++) {
+      const subjectElement = await page.waitForXPath(`/html/body/form/div[3]/div/table/tbody/tr[2]/td/div[3]/div/div[3]/table/tbody/tr[2]/td/div[2]/table[${i}]/tbody/tr/td[2]`);
+      const subject = await subjectElement.evaluate((node) => node.innerText);
+      subjects.push(subject);
+
+      const daysElement = await page.waitForXPath(`/html/body/form/div[3]/div/table/tbody/tr[2]/td/div[3]/div/div[3]/table/tbody/tr[2]/td/div[2]/table[${i}]/tbody/tr/td[9]`);
+      const dayString = await daysElement.evaluate((node) => node.innerText);
+      const dayArray = dayString.split('\n');
+      daysFromSubject[subject] = [];
+      dayArray.forEach((item, index) => {
+        daysFromSubject[subject][index] = item;
+      });
+
+      const startSlot = await page.waitForXPath(`/html/body/form/div[3]/div/table/tbody/tr[2]/td/div[3]/div/div[3]/table/tbody/tr[2]/td/div[2]/table[${i}]/tbody/tr/td[10]`);
+      const startSlotString = await startSlot.evaluate((node) => node.innerText);
+      const startSlotArray = startSlotString.split('\n');
+      startSlotFromSubject[subject] = [];
+      startSlotArray.forEach((item, index) => {
+        startSlotFromSubject[subject][index] = item;
+      });
+
+      const sumSlot = await page.waitForXPath(`/html/body/form/div[3]/div/table/tbody/tr[2]/td/div[3]/div/div[3]/table/tbody/tr[2]/td/div[2]/table[${i}]/tbody/tr/td[11]`);
+      const sumSlotString = await sumSlot.evaluate((node) => node.innerText);
+      const sumSlotArray = sumSlotString.split('\n');
+      sumSlotFromSubject[subject] = [];
+      sumSlotArray.forEach((item, index) => {
+        sumSlotFromSubject[subject][index] = item;
+      });
+
+      const room = await page.waitForXPath(`/html/body/form/div[3]/div/table/tbody/tr[2]/td/div[3]/div/div[3]/table/tbody/tr[2]/td/div[2]/table[${i}]/tbody/tr/td[12]`);
+      const roomString = await room.evaluate((node) => node.innerText);
+      const roomArray = roomString.split('\n');
+      roomFromSubject[subject] = [];
+      roomArray.forEach((item, index) => {
+        roomFromSubject[subject][index] = item;
+      });
+    }
+
+    return true;
+  } catch (error) {
+    functions.logger.error('Error while get time table: ', error);
+    oResult.error = error;
+    return false;
+  }
+}
+
+const GetScoreAndUser = async (page, oResult) => {
+  try {
+
+    return true;
+  } catch (error) {
+    functions.logger.error('Error while get score and user info: ', error);
+    oResult.error = error;
+    return false;
+  }
+}
+
+const GetTuitionFees = async (page, oResult) => {
+  try {
+
+    return true;
+  } catch (error) {
+    functions.logger.error('Error while get tuition fees: ', error);
+    oResult.error = error;
+    return false;
+  }
+}
+
+const GetExamSchedule = async (page, oResult) => {
+  try {
+
+    return true;
+  } catch (error) {
+    functions.logger.error('Error while get exam schedule: ', error);
+    oResult.error = error;
+    return false;
+  }
+}
+
 app.post('/login', async (req, res) => {
   const tool = {browser: {}, page: {}};
   const Result = {error: ''};
@@ -156,11 +260,14 @@ app.post('/all', async (req, res) => {
   const tool = {browser: {}, page: {}};
   const Result = {error: ''};
   let returnError = 1;
+  let isSuccess = false;
   await Init(tool);
   const cleanup = async () => {
+    await tool.page.close();
     await tool.browser.close();
   };
-  const isSuccess = await Login(tool.page, Result, req.body.id, req.body.pass);
+
+  isSuccess = await Login(tool.page, Result, req.body.id, req.body.pass);
   if (!isSuccess) {
     if (Result.error == '') {
       res.status(401).json({'Result': 'Login failed! invalid id or password!'});
@@ -172,7 +279,55 @@ app.post('/all', async (req, res) => {
     return CleanupAndReturn(cleanup, returnError);
   }
 
-  res.status(200).json();
+  isSuccess = await GetTimeTable(tool.page, Result);
+  if (!isSuccess) {
+    if (Result.error == '') {
+      res.status(401).json({'Result': 'Error while get time table! Should not be occured'});
+      returnError = 0;
+    } else {
+      res.status(401).json({'Result': `Fatal Error: ${JSON.stringify(Result.error)}`});
+      returnError = -1;
+    }
+    return CleanupAndReturn(cleanup, returnError);
+  }
+
+  isSuccess = await GetScoreAndUser(tool.page, Result);
+  if (!isSuccess) {
+    if (Result.error == '') {
+      res.status(401).json({'Result': 'Error while get score and user info! Should not be occured'});
+      returnError = 0;
+    } else {
+      res.status(401).json({'Result': `Fatal Error: ${JSON.stringify(Result.error)}`});
+      returnError = -1;
+    }
+    return CleanupAndReturn(cleanup, returnError);
+  }
+
+  isSuccess = await GetExamSchedule(tool.page, Result);
+  if (!isSuccess) {
+    if (Result.error == '') {
+      res.status(401).json({'Result': 'Error while get exam schedule! Should not be occured'});
+      returnError = 0;
+    } else {
+      res.status(401).json({'Result': `Fatal Error: ${JSON.stringify(Result.error)}`});
+      returnError = -1;
+    }
+    return CleanupAndReturn(cleanup, returnError);
+  }
+
+  isSuccess = await GetTuitionFees(tool.page, Result);
+  if (!isSuccess) {
+    if (Result.error == '') {
+      res.status(401).json({'Result': 'Error while get Tuition Fees! Should not be occured'});
+      returnError = 0;
+    } else {
+      res.status(401).json({'Result': `Fatal Error: ${JSON.stringify(Result.error)}`});
+      returnError = -1;
+    }
+    return CleanupAndReturn(cleanup, returnError);
+  }
+
+  res.status(200).json(Result);
   return CleanupAndReturn(cleanup, returnError);
 });
 
