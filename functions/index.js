@@ -146,12 +146,27 @@ const Init = async (oToolObj) => {
   );
 };
 
+const HasAlreadyLogined = async (page, oError) => {
+  try {
+    const checkCondition = await page.waitForSelector('#ctl00_Header1_Logout1_lbtnLogOut', {
+      timeout: 10000,
+    });
+    // const condition = await checkCondition.evaluate((node) => node.innerText);
+    // const listCondition = ['Thoát', 'Exit'];
+    return checkCondition != null;
+  } catch (error) {
+    return false;
+  }
+};
+
 const Login = async (page, oError, id, pass) => {
   try {
     await page.goto('http://thongtindaotao.sgu.edu.vn/', {
       waitUntil: 'domcontentloaded',
     });
 
+    await page.waitForSelector('#ctl00_ContentPlaceHolder1_ctl00_ucDangNhap_txtTaiKhoa');
+    await page.waitForSelector('#ctl00_ContentPlaceHolder1_ctl00_ucDangNhap_txtMatKhau');
     // Type into id and password
     await page.type('#ctl00_ContentPlaceHolder1_ctl00_ucDangNhap_txtTaiKhoa', id);
     await page.type('#ctl00_ContentPlaceHolder1_ctl00_ucDangNhap_txtMatKhau', pass);
@@ -161,11 +176,7 @@ const Login = async (page, oError, id, pass) => {
     await page.waitForSelector(loginButtonSelector);
     await page.click(loginButtonSelector);
 
-    const checkCondition = await page.waitForSelector('#ctl00_Header1_Logout1_lbtnLogOut');
-    const condition = await checkCondition.evaluate((node) => node.innerText);
-    const listCondition = ['Thoát', 'Exit'];
-
-    return IsAny(condition, listCondition);
+    return await HasAlreadyLogined(page, oError);
   } catch (error) {
     functions.logger.error('Error while login: ', error);
     oError.error = error;
@@ -181,7 +192,9 @@ const GetTimeTable = async (page, oResult) => {
       waitUntil: 'domcontentloaded',
     });
 
-    const note = await page.waitForSelector('#ctl00_ContentPlaceHolder1_ctl00_lblNote');
+    const note = await page.waitForSelector('#ctl00_ContentPlaceHolder1_ctl00_lblNote', {
+      timeout: 10000,
+    });
     const noteText = await note.evaluate((node) => node.innerText);
     const noteArray = noteText.split(' ');
     let startDate = noteArray[noteArray.length - 1];
@@ -316,7 +329,7 @@ app.post('/login', async (req, res) => {
 });
 
 app.post('/all', async (req, res) => {
-  const tool = {browser: {}, page: {}, count: 0};
+  const tool = {browser: {}, page: {}};
   const Result = {error: ''};
   let returnError = 1;
   let isSuccess = false;
