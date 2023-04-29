@@ -3,6 +3,7 @@ import json
 import subprocess
 import datetime
 import os
+import threading
 
 backend_url = "http://127.0.0.1:5001/backend-restapi-5ee97/us-central1/app"
 api_key = 'AIzaSyBDPRtq6-RLD713Im-BXwj4Fnz0O0A_Pkw'
@@ -87,4 +88,15 @@ def IsJSON(jsonData):
 curDir = os.getcwd()
 if (GetAuth(curDir + '/auth.json')):
     data = ReadFromJSON(curDir + '/auth.json')
-    Login(backend_url + "/all", data['idToken'], "3118412027", "Gk192000")
+    t1 = threading.Thread(target=Login, args=(backend_url + "/login", data['idToken'], "3118412027", "Gk192000"))
+    t2 = threading.Thread(target=Login, args=(backend_url + "/all", data['idToken'], "3118412027", "Gk192000"))
+
+    # starting thread 1
+    t1.start()
+    # starting thread 2
+    t2.start()
+ 
+    # wait until thread 1 is completely executed
+    t1.join()
+    # wait until thread 2 is completely executed
+    t2.join()
