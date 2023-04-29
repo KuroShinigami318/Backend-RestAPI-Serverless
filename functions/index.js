@@ -66,6 +66,11 @@ app.get('/hello', (req, res) => {
   res.status(200).json({'name': `${req.user.name}`});
 });
 
+const sBrowser = {
+  instance: '',
+  count: 0,
+};
+
 const IsAny = (iConditionToCheck, iListCondiTion) => {
   let result = false;
   iListCondiTion.forEach(
@@ -112,23 +117,28 @@ const MappingSubjectSchedule = (oResult, daysFromSubject, startSlotFromSubject, 
 };
 
 const Init = async (oToolObj) => {
-  oToolObj.browser = await puppeteer.launch({
-    headless: true,
-    timeout: 20000,
-    ignoreHTTPSErrors: true,
-    slowMo: 0,
-    args: [
-      '--disable-gpu',
-      '--disable-dev-shm-usage',
-      '--disable-setuid-sandbox',
-      '--no-first-run',
-      '--no-sandbox',
-      '--no-zygote',
-      '--window-size=1280,720',
-    ],
-  });
+  if (sBrowser.instance == '') {
+    sBrowser.instance = await puppeteer.launch({
+      headless: true,
+      timeout: 20000,
+      ignoreHTTPSErrors: true,
+      slowMo: 0,
+      args: [
+        '--disable-gpu',
+        '--disable-dev-shm-usage',
+        '--disable-setuid-sandbox',
+        '--no-first-run',
+        '--no-sandbox',
+        '--no-zygote',
+        '--window-size=1280,720',
+      ],
+    });
+  }
 
-  oToolObj.page = await oToolObj.browser.newPage();
+  oToolObj.browser = sBrowser;
+  sBrowser.count++;
+
+  oToolObj.page = await oToolObj.browser.instance.newPage();
   await oToolObj.page.setViewport({width: 1280, height: 720});
   // Change the user agent of the scraper
   await oToolObj.page.setUserAgent(
@@ -289,7 +299,11 @@ app.post('/login', async (req, res) => {
   await Init(tool);
   const isSuccess = await Login(tool.page, Result, req.body.id, req.body.pass);
   await tool.page.close();
-  await tool.browser.close();
+  tool.browser.count--;
+  if (tool.browser.count == 0) {
+    await tool.browser.instance.close();
+    tool.browser.instance = '';
+  }
   if (!isSuccess) {
     if (Result.error == '') {
       res.status(401).json({'Result': 'Login failed! invalid id or password!'});
@@ -302,14 +316,18 @@ app.post('/login', async (req, res) => {
 });
 
 app.post('/all', async (req, res) => {
-  const tool = {browser: {}, page: {}};
+  const tool = {browser: {}, page: {}, count: 0};
   const Result = {error: ''};
   let returnError = 1;
   let isSuccess = false;
   await Init(tool);
   const cleanup = async () => {
     await tool.page.close();
-    await tool.browser.close();
+    tool.browser.count--;
+    if (tool.browser.count == 0) {
+      await tool.browser.instance.close();
+      tool.browser.instance = '';
+    }
   };
 
   isSuccess = await Login(tool.page, Result, req.body.id, req.body.pass);
