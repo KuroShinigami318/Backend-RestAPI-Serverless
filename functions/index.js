@@ -9,7 +9,6 @@ const app = express();
 
 // The Firebase Admin SDK to access Firestore.
 const admin = require('firebase-admin');
-const { object } = require('firebase-functions/v1/storage');
 admin.initializeApp();
 
 // Express middleware that validates Firebase ID Tokens passed in the Authorization HTTP header.
@@ -82,7 +81,7 @@ const IsAny = (iConditionToCheck, iListCondiTion) => {
 const CleanupAndReturn = (cleanupCallBack, returnValue) => {
   cleanupCallBack();
   return returnValue;
-}
+};
 
 const MappingSubjectSchedule = (oResult, daysFromSubject, startSlotFromSubject, sumSlotFromSubject, roomFromSubject) => {
   const map = {
@@ -183,11 +182,11 @@ const GetTimeTable = async (page, oResult) => {
     oResult.ttb.endDate = endDateJSON;
 
     const trList = await page.$$('.grid-roll2 > table');
-    let subjects = [];
-    let daysFromSubject = {};
-    let startSlotFromSubject = {};
-    let sumSlotFromSubject = {};
-    let roomFromSubject = {};
+    const subjects = [];
+    const daysFromSubject = {};
+    const startSlotFromSubject = {};
+    const sumSlotFromSubject = {};
+    const roomFromSubject = {};
     for (let i = 1; i <= trList.length; i++) {
       const subjectElement = await page.waitForXPath(`/html/body/form/div[3]/div/table/tbody/tr[2]/td/div[3]/div/div[3]/table/tbody/tr[2]/td/div[2]/table[${i}]/tbody/tr/td[2]`);
       const subject = await subjectElement.evaluate((node) => node.innerText);
@@ -234,10 +233,15 @@ const GetTimeTable = async (page, oResult) => {
     oResult.error = error;
     return false;
   }
-}
+};
 
 const GetScoreAndUser = async (page, oResult) => {
   try {
+    oResult.ttb = {};
+
+    await page.goto('http://thongtindaotao.sgu.edu.vn/default.aspx?page=xemdiemthi', {
+      waitUntil: 'domcontentloaded',
+    });
 
     return true;
   } catch (error) {
@@ -245,10 +249,15 @@ const GetScoreAndUser = async (page, oResult) => {
     oResult.error = error;
     return false;
   }
-}
+};
 
 const GetTuitionFees = async (page, oResult) => {
   try {
+    oResult.ttb = {};
+
+    await page.goto('http://thongtindaotao.sgu.edu.vn/default.aspx?page=xemhocphi', {
+      waitUntil: 'domcontentloaded',
+    });
 
     return true;
   } catch (error) {
@@ -256,10 +265,15 @@ const GetTuitionFees = async (page, oResult) => {
     oResult.error = error;
     return false;
   }
-}
+};
 
 const GetExamSchedule = async (page, oResult) => {
   try {
+    oResult.ttb = {};
+
+    await page.goto('http://thongtindaotao.sgu.edu.vn/default.aspx?page=xemlichthi', {
+      waitUntil: 'domcontentloaded',
+    });
 
     return true;
   } catch (error) {
@@ -267,7 +281,7 @@ const GetExamSchedule = async (page, oResult) => {
     oResult.error = error;
     return false;
   }
-}
+};
 
 app.post('/login', async (req, res) => {
   const tool = {browser: {}, page: {}};
