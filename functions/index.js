@@ -9,6 +9,7 @@ const app = express();
 
 // The Firebase Admin SDK to access Firestore.
 const admin = require('firebase-admin');
+const { object } = require('firebase-functions/v1/storage');
 admin.initializeApp();
 
 // Express middleware that validates Firebase ID Tokens passed in the Authorization HTTP header.
@@ -82,6 +83,34 @@ const CleanupAndReturn = (cleanupCallBack, returnValue) => {
   cleanupCallBack();
   return returnValue;
 }
+
+const MappingSubjectSchedule = (oResult, daysFromSubject, startSlotFromSubject, sumSlotFromSubject, roomFromSubject) => {
+  const map = {
+    mon: 'Hai',
+    tues: 'Ba',
+    weds: 'Tư',
+    thurs: 'Năm',
+    frid: 'Sáu',
+    satur: 'Bảy',
+  };
+  Object.keys(map).forEach((index) => {
+    oResult[index] = {};
+    oResult[index].subjects = [];
+    oResult[index].startSlots = [];
+    oResult[index].sumSlots = [];
+    oResult[index].rooms = [];
+    Object.keys(daysFromSubject).forEach((subject) => {
+      daysFromSubject[subject].forEach((day, dIndex) => {
+        if (day == map[index]) {
+          oResult[index].subjects.push(subject);
+          oResult[index].startSlots.push(startSlotFromSubject[subject][dIndex]);
+          oResult[index].sumSlots.push(sumSlotFromSubject[subject][dIndex]);
+          oResult[index].rooms.push(roomFromSubject[subject][dIndex]);
+        }
+      });
+    });
+  });
+};
 
 const Init = async (oToolObj) => {
   oToolObj.browser = await puppeteer.launch({
@@ -196,6 +225,8 @@ const GetTimeTable = async (page, oResult) => {
         roomFromSubject[subject][index] = item;
       });
     }
+
+    MappingSubjectSchedule(oResult, daysFromSubject, startSlotFromSubject, sumSlotFromSubject, roomFromSubject);
 
     return true;
   } catch (error) {
