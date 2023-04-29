@@ -414,5 +414,5 @@ app.post('/all', async (req, res) => {
 // with value `Bearer <Firebase ID Token>`.
 exports.app = functions.runWith({
   timeoutSeconds: 120,
-  memory: '4GB',
+  memory: '8GB',
 }).https.onRequest(app);
