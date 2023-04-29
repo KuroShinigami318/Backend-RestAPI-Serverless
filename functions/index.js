@@ -71,6 +71,7 @@ const sBrowser = {
   count: 0,
 };
 
+/* eslint-disable no-unused-vars */
 const IsAny = (iConditionToCheck, iListCondiTion) => {
   let result = false;
   iListCondiTion.forEach(
@@ -82,6 +83,7 @@ const IsAny = (iConditionToCheck, iListCondiTion) => {
     });
   return result;
 };
+/* eslint-enable no-unused-vars */
 
 const CleanupAndReturn = (cleanupCallBack, returnValue) => {
   cleanupCallBack();
