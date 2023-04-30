@@ -124,17 +124,16 @@ const mutex = {
     return admin.firestore().runTransaction((transaction) => {
       return transaction.get(lockRef).then((lockDoc) => {
         const lockResult = lockDoc.get('accquireLock');
-        if (lockResult) {
-          setTimeout(mutex.AccquireLock, 300);
+        if (!lockResult) {
+          transaction.update(lockRef, {accquireLock: true});
         }
-        transaction.update(lockRef, {accquireLock: true});
       });
     });
   },
   ReleaseLock: async () => {
     const queriesSnapShot = await admin.firestore().collection('requests').doc('requestLockingSystem').get();
     await queriesSnapShot.ref.update({accquireLock: false});
-  }
+  },
 };
 
 const Init = async (oToolObj) => {
