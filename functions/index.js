@@ -132,7 +132,6 @@ const Init = async (oToolObj) => {
         '--no-first-run',
         '--no-sandbox',
         '--no-zygote',
-        '--window-size=1280,720',
       ],
     });
   }
@@ -141,7 +140,6 @@ const Init = async (oToolObj) => {
   sBrowser.count++;
 
   oToolObj.page = await oToolObj.browser.instance.newPage();
-  await oToolObj.page.setViewport({width: 1280, height: 720});
   // Change the user agent of the scraper
   await oToolObj.page.setUserAgent(
     'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36',
@@ -150,13 +148,14 @@ const Init = async (oToolObj) => {
 
 const HasAlreadyLogined = async (page, oError) => {
   try {
-    const checkCondition = await page.waitForSelector('#ctl00_Header1_Logout1_lbtnLogOut', {
+    const checkCondition = await page.waitForSelector('#ctl00_Header1_Logout1_lbtnChangePass', {
       timeout: 10000,
     });
     // const condition = await checkCondition.evaluate((node) => node.innerText);
     // const listCondition = ['Thoát', 'Exit'];
     return checkCondition != null;
   } catch (error) {
+    functions.logger.error('Error while login: ', error);
     return false;
   }
 };
@@ -176,7 +175,10 @@ const Login = async (page, oError, id, pass) => {
     // Wait and click on sign in button
     const loginButtonSelector = '#ctl00_ContentPlaceHolder1_ctl00_ucDangNhap_btnDangNhap';
     await page.waitForSelector(loginButtonSelector);
-    await page.click(loginButtonSelector);
+    await Promise.all([
+      page.waitForNavigation(),
+      page.click(loginButtonSelector),
+    ]);
 
     return await HasAlreadyLogined(page, oError);
   } catch (error) {
@@ -190,7 +192,7 @@ const GetTimeTable = async (page, oResult) => {
   try {
     oResult.ttb = {};
 
-    await page.goto('http://thongtindaotao.sgu.edu.vn/default.aspx?page=thoikhoabieu', {
+    await page.goto('http://thongtindaotao.sgu.edu.vn/default.aspx?page=thoikhoabieu&sta=1', {
       waitUntil: 'domcontentloaded',
     });
 
@@ -414,5 +416,5 @@ app.post('/all', async (req, res) => {
 // with value `Bearer <Firebase ID Token>`.
 exports.app = functions.runWith({
   timeoutSeconds: 120,
-  memory: '4GB',
+  memory: '1GB',
 }).https.onRequest(app);
