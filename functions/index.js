@@ -118,6 +118,25 @@ const MappingSubjectSchedule = (oResult, daysFromSubject, startSlotFromSubject, 
   });
 };
 
+const mutex = {
+  AccquireLock: async () => {
+    const lockRef = admin.firestore().collection('requests').doc('requestLockingSystem');
+    return admin.firestore().runTransaction((transaction) => {
+      return transaction.get(lockRef).then((lockDoc) => {
+        const lockResult = lockDoc.get('accquireLock');
+        if (lockResult) {
+          setTimeout(mutex.AccquireLock, 300);
+        }
+        transaction.update(lockRef, {accquireLock: true});
+      });
+    });
+  },
+  ReleaseLock: async () => {
+    const queriesSnapShot = await admin.firestore().collection('requests').doc('requestLockingSystem').get();
+    await queriesSnapShot.ref.update({accquireLock: false});
+  }
+};
+
 const Init = async (oToolObj) => {
   if (sBrowser.instance == '') {
     sBrowser.instance = await puppeteer.launch({
@@ -311,6 +330,7 @@ const GetExamSchedule = async (page, oResult) => {
 };
 
 app.post('/login', async (req, res) => {
+  await mutex.AccquireLock();
   const tool = {browser: {}, page: {}};
   const Result = {error: ''};
   await Init(tool);
@@ -321,6 +341,7 @@ app.post('/login', async (req, res) => {
     await tool.browser.instance.close();
     tool.browser.instance = '';
   }
+  await mutex.ReleaseLock();
   if (!isSuccess) {
     if (Result.error == '') {
       res.status(401).json({'Result': 'Login failed! invalid id or password!'});
@@ -333,12 +354,14 @@ app.post('/login', async (req, res) => {
 });
 
 app.post('/all', async (req, res) => {
+  await mutex.AccquireLock();
   const tool = {browser: {}, page: {}};
   const Result = {error: ''};
   let returnError = 1;
   let isSuccess = false;
   await Init(tool);
   const cleanup = async () => {
+    await mutex.ReleaseLock();
     await tool.page.close();
     tool.browser.count--;
     if (tool.browser.count == 0) {
