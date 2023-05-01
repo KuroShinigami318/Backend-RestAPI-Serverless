@@ -350,26 +350,50 @@ const GetTuitionFees = async (page, oResult) => {
       waitUntil: 'domcontentloaded',
     });
 
+    const payableFee = await page.$eval('#ctl00_ContentPlaceHolder1_ctl00_lblConNoHocKy', (node) => node.innerText);
+    oResult.fees.payableFee = payableFee;
+    const paidFee = await page.$eval('#ctl00_ContentPlaceHolder1_ctl00_lblDaDongHKOffline', (node) => node.innerText);
+    oResult.fees.paidFee = paidFee;
+
     return true;
   } catch (error) {
     functions.logger.error('Error while get tuition fees: ', error);
-    oResult.error = error;
     return false;
   }
 };
 
 const GetExamSchedule = async (page, oResult) => {
   try {
-    oResult.examSchedule = {};
-
     await page.goto('http://thongtindaotao.sgu.edu.vn/default.aspx?page=xemlichthi', {
       waitUntil: 'domcontentloaded',
     });
 
+    const table = await page.waitForSelector('#ctl00_ContentPlaceHolder1_ctl00_gvXem', {
+      timeout: 10000,
+    });
+
+    oResult.examSchedule = {};
+    oResult.examSchedule.subjects = [];
+    oResult.examSchedule.examDates = [];
+    oResult.examSchedule.startTimes = [];
+    oResult.examSchedule.rooms = [];
+
+    const trArray = await table.$$('tr');
+    const trLength = trArray.length;
+    for (let i = 1; i < trLength; i++) {
+      const subject = await trArray[i].$eval(`#ctl00_ContentPlaceHolder1_ctl00_gvXem_ctl0${i + 1}_lblTenMonHoc`, (node) => node.innerText);
+      const examDate = await trArray[i].$eval(`#ctl00_ContentPlaceHolder1_ctl00_gvXem_ctl0${i + 1}_lblNgayThi`, (node) => node.innerText);
+      const startTime = await trArray[i].$eval(`#ctl00_ContentPlaceHolder1_ctl00_gvXem_ctl0${i + 1}_lblTietBD`, (node) => node.innerText);
+      const room = await trArray[i].$eval(`#ctl00_ContentPlaceHolder1_ctl00_gvXem_ctl0${i + 1}_lblTenPhong`, (node) => node.innerText);
+      oResult.examSchedule.subjects.push(subject);
+      oResult.examSchedule.examDates.push(examDate);
+      oResult.examSchedule.startTimes.push(startTime);
+      oResult.examSchedule.rooms.push(room);
+    }
+
     return true;
   } catch (error) {
     functions.logger.error('Error while get exam schedule: ', error);
-    oResult.error = error;
     return false;
   }
 };
@@ -451,7 +475,7 @@ app.post('/all', async (req, res) => {
   isSuccess = await GetTimeTable(tool.page, Result);
   if (!isSuccess) {
     if (Result.error == '') {
-      res.status(401).json({'Result': 'Error while get time table! Should not be occured'});
+      res.status(401).json({'Result': 'Error while get time table! Should not be occured. Maybe there\'s nothing'});
       returnError = 0;
     } else {
       res.status(401).json({'Result': `Fatal Error: ${JSON.stringify(Result.error)}`});
@@ -463,7 +487,7 @@ app.post('/all', async (req, res) => {
   isSuccess = await GetScoreAndUser(tool.page, Result);
   if (!isSuccess) {
     if (Result.error == '') {
-      res.status(401).json({'Result': 'Error while get score and user info! Should not be occured'});
+      res.status(401).json({'Result': 'Error while get score and user info! Should not be occured. Maybe there\'s nothing'});
       returnError = 0;
     } else {
       res.status(401).json({'Result': `Fatal Error: ${JSON.stringify(Result.error)}`});
@@ -476,7 +500,7 @@ app.post('/all', async (req, res) => {
   isSuccess = await GetExamSchedule(tool.page, Result);
   if (!isSuccess) {
     if (Result.error == '') {
-      res.status(401).json({'Result': 'Error while get exam schedule! Should not be occured'});
+      res.status(401).json({'Result': 'Error while get exam schedule! Should not be occured. Maybe there\'s nothing'});
       returnError = 0;
     } else {
       res.status(401).json({'Result': `Fatal Error: ${JSON.stringify(Result.error)}`});
@@ -488,7 +512,7 @@ app.post('/all', async (req, res) => {
   isSuccess = await GetTuitionFees(tool.page, Result);
   if (!isSuccess) {
     if (Result.error == '') {
-      res.status(401).json({'Result': 'Error while get Tuition Fees! Should not be occured'});
+      res.status(401).json({'Result': 'Error while get Tuition Fees! Should not be occured. Maybe there\'s nothing'});
       returnError = 0;
     } else {
       res.status(401).json({'Result': `Fatal Error: ${JSON.stringify(Result.error)}`});
