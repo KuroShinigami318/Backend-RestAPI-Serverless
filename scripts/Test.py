@@ -88,15 +88,15 @@ def IsJSON(jsonData):
 curDir = os.getcwd()
 if (GetAuth(curDir + '/auth.json')):
     data = ReadFromJSON(curDir + '/auth.json')
-    t1 = threading.Thread(target=Login, args=(backend_url + "/login", data['idToken'], "3118412027", "Gk192000"))
+    # t1 = threading.Thread(target=Login, args=(backend_url + "/login", data['idToken'], "3118412027", "Gk192000"))
     t2 = threading.Thread(target=Login, args=(backend_url + "/all", data['idToken'], "3118412027", "Gk192000"))
 
     # starting thread 1
-    t1.start()
+    # t1.start()
     # starting thread 2
     t2.start()
  
     # wait until thread 1 is completely executed
-    t1.join()
+    # t1.join()
     # wait until thread 2 is completely executed
     t2.join()
