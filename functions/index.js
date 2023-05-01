@@ -121,18 +121,31 @@ const MappingSubjectSchedule = (oResult, daysFromSubject, startSlotFromSubject, 
 const mutex = {
   AccquireLock: async () => {
     const lockRef = admin.firestore().collection('requests').doc('requestLockingSystem');
-    return admin.firestore().runTransaction((transaction) => {
-      return transaction.get(lockRef).then((lockDoc) => {
-        const lockResult = lockDoc.get('accquireLock');
-        if (!lockResult) {
+    let isLock = {};
+    const checkLock = async () => {
+      return admin.firestore().runTransaction(async (transaction) => {
+        return transaction.get(lockRef).then(async (lockDoc) => {
+          let lockResult = lockDoc.get('accquireLock');
+          isLock = lockResult;
           transaction.update(lockRef, {accquireLock: true});
-        }
+        });
+      });
+    }
+    do {
+      await checkLock();
+      await mutex.Sleep(300);
+    } while (isLock);
+  },
+  ReleaseLock: async () => {
+    const lockRef = admin.firestore().collection('requests').doc('requestLockingSystem');
+    return admin.firestore().runTransaction(async (transaction) => {
+      return transaction.get(lockRef).then(async (lockDoc) => {
+        transaction.update(lockRef, {accquireLock: false});
       });
     });
   },
-  ReleaseLock: async () => {
-    const queriesSnapShot = await admin.firestore().collection('requests').doc('requestLockingSystem').get();
-    await queriesSnapShot.ref.update({accquireLock: false});
+  Sleep: (milliseconds) => {
+    return new Promise(resolve => setTimeout(resolve, milliseconds));
   },
 };
 
@@ -330,6 +343,7 @@ const GetExamSchedule = async (page, oResult) => {
 
 app.post('/login', async (req, res) => {
   await mutex.AccquireLock();
+  console.log('wait done');
   const tool = {browser: {}, page: {}};
   const Result = {error: ''};
   await Init(tool);
@@ -354,6 +368,7 @@ app.post('/login', async (req, res) => {
 
 app.post('/all', async (req, res) => {
   await mutex.AccquireLock();
+  console.log('wait done');
   const tool = {browser: {}, page: {}};
   const Result = {error: ''};
   let returnError = 1;
