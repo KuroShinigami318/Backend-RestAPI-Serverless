@@ -120,6 +120,7 @@ const MappingSubjectSchedule = (oResult, daysFromSubject, startSlotFromSubject, 
 
 const mutex = {
   AccquireLock: async () => {
+    const startTime = new Date();
     const lockRef = admin.firestore().collection('requests').doc('requestLockingSystem');
     let isLock = {};
     const checkLock = async () => {
@@ -134,6 +135,11 @@ const mutex = {
       });
     };
     do {
+      if (Date() - startTime > (118 * 60 * 1000)) {
+        console.log('Timeout');
+        mutex.ReleaseLock();
+        break;
+      }
       await checkLock();
       await mutex.Sleep(300);
     } while (isLock);
@@ -344,18 +350,26 @@ const GetExamSchedule = async (page, oResult) => {
 };
 
 app.post('/login', async (req, res) => {
+  const checkCleanup = {isAlreadyCleaned: false};
+  const cleanupCallBack = async () => {
+      if (!checkCleanup.isAlreadyCleaned) {
+      await tool.page.close();
+      tool.browser.count--;
+      if (tool.browser.count == 0) {
+        await tool.browser.instance.close();
+        tool.browser.instance = '';
+      }
+      await mutex.ReleaseLock();
+      checkCleanup.isAlreadyCleaned = true;
+    }
+  };
+  setTimeout(cleanupCallBack, 118 * 60 * 1000);
   await mutex.AccquireLock();
   const tool = {browser: {}, page: {}};
   const Result = {error: ''};
   await Init(tool);
   const isSuccess = await Login(tool.page, Result, req.body.id, req.body.pass);
-  await tool.page.close();
-  tool.browser.count--;
-  if (tool.browser.count == 0) {
-    await tool.browser.instance.close();
-    tool.browser.instance = '';
-  }
-  await mutex.ReleaseLock();
+  await cleanupCallBack();
   if (!isSuccess) {
     if (Result.error == '') {
       res.status(401).json({'Result': 'Login failed! invalid id or password!'});
@@ -368,22 +382,27 @@ app.post('/login', async (req, res) => {
 });
 
 app.post('/all', async (req, res) => {
+  const checkCleanup = {isAlreadyCleaned: false};
   await mutex.AccquireLock();
   const tool = {browser: {}, page: {}};
   const Result = {error: ''};
   let returnError = 1;
   let isSuccess = false;
-  await Init(tool);
   const cleanup = async () => {
-    await mutex.ReleaseLock();
-    await tool.page.close();
-    tool.browser.count--;
-    if (tool.browser.count == 0) {
-      await tool.browser.instance.close();
-      tool.browser.instance = '';
+    if (!checkCleanup.isAlreadyCleaned) {
+      await mutex.ReleaseLock();
+      await tool.page.close();
+      tool.browser.count--;
+      if (tool.browser.count == 0) {
+        await tool.browser.instance.close();
+        tool.browser.instance = '';
+      }
+      checkCleanup.isAlreadyCleaned = true;
     }
   };
+  setTimeout(cleanup, 118 * 60 * 1000);
 
+  await Init(tool);
   isSuccess = await Login(tool.page, Result, req.body.id, req.body.pass);
   if (!isSuccess) {
     if (Result.error == '') {
