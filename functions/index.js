@@ -127,7 +127,9 @@ const mutex = {
         return transaction.get(lockRef).then(async (lockDoc) => {
           const lockResult = lockDoc.get('accquireLock');
           isLock = lockResult;
-          transaction.update(lockRef, {accquireLock: true});
+          if (!isLock) {
+            transaction.update(lockRef, {accquireLock: true});
+          }
         });
       });
     };
