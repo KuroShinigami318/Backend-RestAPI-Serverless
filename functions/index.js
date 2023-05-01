@@ -125,12 +125,12 @@ const mutex = {
     const checkLock = async () => {
       return admin.firestore().runTransaction(async (transaction) => {
         return transaction.get(lockRef).then(async (lockDoc) => {
-          let lockResult = lockDoc.get('accquireLock');
+          const lockResult = lockDoc.get('accquireLock');
           isLock = lockResult;
           transaction.update(lockRef, {accquireLock: true});
         });
       });
-    }
+    };
     do {
       await checkLock();
       await mutex.Sleep(300);
@@ -145,7 +145,7 @@ const mutex = {
     });
   },
   Sleep: (milliseconds) => {
-    return new Promise(resolve => setTimeout(resolve, milliseconds));
+    return new Promise((resolve) => setTimeout(resolve, milliseconds));
   },
 };
 
@@ -343,7 +343,6 @@ const GetExamSchedule = async (page, oResult) => {
 
 app.post('/login', async (req, res) => {
   await mutex.AccquireLock();
-  console.log('wait done');
   const tool = {browser: {}, page: {}};
   const Result = {error: ''};
   await Init(tool);
@@ -368,7 +367,6 @@ app.post('/login', async (req, res) => {
 
 app.post('/all', async (req, res) => {
   await mutex.AccquireLock();
-  console.log('wait done');
   const tool = {browser: {}, page: {}};
   const Result = {error: ''};
   let returnError = 1;
