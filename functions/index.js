@@ -375,6 +375,7 @@ const GetExamSchedule = async (page, oResult) => {
 };
 
 app.post('/login', async (req, res) => {
+  const startTime = new Date();
   const checkCleanup = {isAlreadyCleaned: false};
   const cleanupCallBack = async () => {
     if (!checkCleanup.isAlreadyCleaned) {
@@ -386,6 +387,9 @@ app.post('/login', async (req, res) => {
       }
       await mutex.ReleaseLock();
       checkCleanup.isAlreadyCleaned = true;
+      if (Date() - startTime > 118 * 60 * 1000) {
+        res.status(401).json({'Result': 'Timeout exceed cause server is busy in processing another requests'});
+      }
     }
   };
   setTimeout(cleanupCallBack, 118 * 60 * 1000);
@@ -407,6 +411,7 @@ app.post('/login', async (req, res) => {
 });
 
 app.post('/all', async (req, res) => {
+  const startTime = new Date();
   const checkCleanup = {isAlreadyCleaned: false};
   await mutex.AccquireLock();
   const tool = {browser: {}, page: {}};
@@ -423,6 +428,9 @@ app.post('/all', async (req, res) => {
         tool.browser.instance = '';
       }
       checkCleanup.isAlreadyCleaned = true;
+      if (Date() - startTime > 118 * 60 * 1000) {
+        res.status(401).json({'Result': 'Timeout exceed cause server is busy in processing another requests'});
+      }
     }
   };
   setTimeout(cleanup, 118 * 60 * 1000);
