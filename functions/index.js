@@ -303,11 +303,36 @@ const GetTimeTable = async (page, oResult) => {
 
 const GetScoreAndUser = async (page, oResult) => {
   try {
-    oResult.ttb = {};
+    oResult.user = {};
+    oResult.score = {};
 
     await page.goto('http://thongtindaotao.sgu.edu.vn/default.aspx?page=xemdiemthi', {
       waitUntil: 'domcontentloaded',
     });
+
+    const name = await page.$eval('#ctl00_ContentPlaceHolder1_ctl00_ucThongTinSV_lblTenSinhVien', (node) => node.innerText);
+    oResult.user.studentName = name;
+    const major = await page.$eval('#ctl00_ContentPlaceHolder1_ctl00_ucThongTinSV_lbNganh', (node) => node.innerText);
+    oResult.user.major = major;
+    const department = await page.$eval('#ctl00_ContentPlaceHolder1_ctl00_ucThongTinSV_lblKhoa', (node) => node.innerText);
+    oResult.user.department = department;
+    const Cohort = await page.$eval('#ctl00_ContentPlaceHolder1_ctl00_ucThongTinSV_lblKhoaHoc', (node) => node.innerText);
+    oResult.user.Cohort = Cohort;
+    const advisor = await page.$eval('#ctl00_ContentPlaceHolder1_ctl00_ucThongTinSV_lblCVHT', (node) => node.innerText);
+    oResult.user.advisor = advisor;
+
+    const table = await page.$$('.view-table');
+    const scoreRowsEle = await table[0].$$('.row-diemTK');
+    const scoreRowslen = scoreRowsEle.length;
+    const creditsString = await scoreRowsEle[scoreRowslen - 1].evaluate((node) => node.innerText);
+    const accumulatedAverageMark4String = await scoreRowsEle[scoreRowslen - 3].evaluate((node) => node.innerText);
+    const accumulatedAverageMarkString = await scoreRowsEle[scoreRowslen - 4].evaluate((node) => node.innerText);
+    const credits = creditsString.split(':')[1];
+    const accumulatedAverageMark4 = accumulatedAverageMark4String.split(':')[1];
+    const accumulatedAverageMark = accumulatedAverageMarkString.split(':')[1];
+    oResult.score.credits = credits;
+    oResult.score.accumulatedAverageMark4 = accumulatedAverageMark4;
+    oResult.score.accumulatedAverageMark = accumulatedAverageMark;
 
     return true;
   } catch (error) {
@@ -319,7 +344,7 @@ const GetScoreAndUser = async (page, oResult) => {
 
 const GetTuitionFees = async (page, oResult) => {
   try {
-    oResult.ttb = {};
+    oResult.fees = {};
 
     await page.goto('http://thongtindaotao.sgu.edu.vn/default.aspx?page=xemhocphi', {
       waitUntil: 'domcontentloaded',
@@ -335,7 +360,7 @@ const GetTuitionFees = async (page, oResult) => {
 
 const GetExamSchedule = async (page, oResult) => {
   try {
-    oResult.ttb = {};
+    oResult.examSchedule = {};
 
     await page.goto('http://thongtindaotao.sgu.edu.vn/default.aspx?page=xemlichthi', {
       waitUntil: 'domcontentloaded',
@@ -352,7 +377,7 @@ const GetExamSchedule = async (page, oResult) => {
 app.post('/login', async (req, res) => {
   const checkCleanup = {isAlreadyCleaned: false};
   const cleanupCallBack = async () => {
-      if (!checkCleanup.isAlreadyCleaned) {
+    if (!checkCleanup.isAlreadyCleaned) {
       await tool.page.close();
       tool.browser.count--;
       if (tool.browser.count == 0) {
@@ -438,6 +463,7 @@ app.post('/all', async (req, res) => {
     }
     return CleanupAndReturn(cleanup, returnError);
   }
+  Result.user.studentCode = req.body.id;
 
   isSuccess = await GetExamSchedule(tool.page, Result);
   if (!isSuccess) {
