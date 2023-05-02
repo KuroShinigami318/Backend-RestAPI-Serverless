@@ -412,6 +412,7 @@ app.post('/login', async (req, res) => {
   const checkCleanup = {isAlreadyCleaned: false};
   const cleanupCallBack = async () => {
     if (!checkCleanup.isAlreadyCleaned) {
+      await mutex.ReleaseLock();
       await mutex.AccquireLock();
       await tool.page.close();
       tool.browser.count--;
@@ -429,7 +430,6 @@ app.post('/login', async (req, res) => {
   const tool = {browser: {}, page: {}};
   const Result = {error: ''};
   await Init(tool);
-  await mutex.ReleaseLock();
   const isSuccess = await Login(tool.page, Result, req.body.id, req.body.pass);
   await cleanupCallBack();
   if (!isSuccess) {
