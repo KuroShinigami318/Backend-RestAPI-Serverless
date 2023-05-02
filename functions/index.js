@@ -150,7 +150,7 @@ const mutex = {
         break;
       }
       await checkLock();
-      await mutex.Sleep(2000);
+      await mutex.Sleep(1000);
     } while (isLock);
   },
   ReleaseLock: async () => {
