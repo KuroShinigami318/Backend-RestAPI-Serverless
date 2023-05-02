@@ -9,7 +9,7 @@ const app = express();
 
 // The Firebase Admin SDK to access Firestore.
 const admin = require('firebase-admin');
-const {Timestamp} = require('firebase-admin/firestore')
+const {Timestamp} = require('firebase-admin/firestore');
 admin.initializeApp();
 
 // Express middleware that validates Firebase ID Tokens passed in the Authorization HTTP header.
