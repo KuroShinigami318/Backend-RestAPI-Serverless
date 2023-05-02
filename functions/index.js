@@ -410,10 +410,10 @@ const GetExamSchedule = async (page, oResult) => {
 app.post('/login', async (req, res) => {
   const startTime = new Date();
   const checkCleanup = {isAlreadyCleaned: false};
+  await mutex.AccquireLock();
   const cleanupCallBack = async () => {
     if (!checkCleanup.isAlreadyCleaned) {
       await mutex.ReleaseLock();
-      await mutex.AccquireLock();
       await tool.page.close();
       tool.browser.count--;
       if (tool.browser.count == 0) {
@@ -467,7 +467,6 @@ app.post('/all', async (req, res) => {
     }
   };
   setTimeout(cleanup, 118 * 60 * 1000);
-
   await Init(tool);
   isSuccess = await Login(tool.page, Result, req.body.id, req.body.pass);
   if (!isSuccess) {
