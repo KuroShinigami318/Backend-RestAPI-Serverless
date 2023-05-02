@@ -351,13 +351,21 @@ const GetScoreAndUser = async (page, oResult) => {
   }
 };
 
-const GetTuitionFees = async (page, oResult) => {
+const GetTuitionFees = async (page, oResult, id, pass) => {
   try {
     oResult.fees = {};
 
     await page.goto('http://thongtindaotao.sgu.edu.vn/default.aspx?page=xemhocphi', {
       waitUntil: 'domcontentloaded',
     });
+
+    if (!await HasAlreadyLogined(page, oResult)) {
+      console.log('trying login again');
+      await Login(page, oResult, id, pass);
+      await page.goto('http://thongtindaotao.sgu.edu.vn/default.aspx?page=xemhocphi', {
+        waitUntil: 'domcontentloaded',
+      });
+    }
 
     await page.waitForSelector('#ctl00_ContentPlaceHolder1_ctl00_lblConNoHocKy');
     const payableFee = await page.$eval('#ctl00_ContentPlaceHolder1_ctl00_lblConNoHocKy', (node) => node.innerText);
@@ -372,11 +380,19 @@ const GetTuitionFees = async (page, oResult) => {
   }
 };
 
-const GetExamSchedule = async (page, oResult) => {
+const GetExamSchedule = async (page, oResult, id, pass) => {
   try {
     await page.goto('http://thongtindaotao.sgu.edu.vn/default.aspx?page=xemlichthi', {
       waitUntil: 'domcontentloaded',
     });
+
+    if (!await HasAlreadyLogined(page, oResult)) {
+      console.log('trying login again');
+      await Login(page, oResult, id, pass);
+      await page.goto('http://thongtindaotao.sgu.edu.vn/default.aspx?page=xemlichthi', {
+        waitUntil: 'domcontentloaded',
+      });
+    }
 
     const table = await page.waitForSelector('#ctl00_ContentPlaceHolder1_ctl00_gvXem');
 
@@ -412,6 +428,7 @@ app.post('/login', async (req, res) => {
   await mutex.AccquireLock();
   const cleanupCallBack = async () => {
     if (!checkCleanup.isAlreadyCleaned) {
+      await mutex.ReleaseLock();
       await tool.page.close();
       tool.browser.count--;
       if (tool.browser.count == 0) {
@@ -428,7 +445,6 @@ app.post('/login', async (req, res) => {
   const tool = {browser: {}, page: {}};
   const Result = {error: ''};
   await Init(tool);
-  await mutex.ReleaseLock();
   const isSuccess = await Login(tool.page, Result, req.body.id, req.body.pass);
   await cleanupCallBack();
   if (!isSuccess) {
@@ -452,6 +468,7 @@ app.post('/all', async (req, res) => {
   let isSuccess = false;
   const cleanup = async () => {
     if (!checkCleanup.isAlreadyCleaned) {
+      await mutex.ReleaseLock();
       await tool.page.close();
       tool.browser.count--;
       if (tool.browser.count == 0) {
@@ -466,7 +483,6 @@ app.post('/all', async (req, res) => {
   };
   setTimeout(cleanup, 118 * 60 * 1000);
   await Init(tool);
-  await mutex.ReleaseLock();
   isSuccess = await Login(tool.page, Result, req.body.id, req.body.pass);
   if (!isSuccess) {
     if (Result.error == '') {
@@ -504,7 +520,7 @@ app.post('/all', async (req, res) => {
   }
   Result.user.studentCode = req.body.id;
 
-  isSuccess = await GetExamSchedule(tool.page, Result);
+  isSuccess = await GetExamSchedule(tool.page, Result, req.body.id, req.body.pass);
   if (!isSuccess) {
     if (Result.error == '') {
       res.status(401).json({'Result': 'Error while get exam schedule! Should not be occured. Maybe there\'s nothing'});
@@ -516,7 +532,7 @@ app.post('/all', async (req, res) => {
     return CleanupAndReturn(cleanup, returnError);
   }
 
-  isSuccess = await GetTuitionFees(tool.page, Result);
+  isSuccess = await GetTuitionFees(tool.page, Result, req.body.id, req.body.pass);
   if (!isSuccess) {
     if (Result.error == '') {
       res.status(401).json({'Result': 'Error while get Tuition Fees! Should not be occured. Maybe there\'s nothing'});
