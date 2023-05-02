@@ -359,6 +359,7 @@ const GetTuitionFees = async (page, oResult) => {
       waitUntil: 'domcontentloaded',
     });
 
+    await page.waitForSelector('#ctl00_ContentPlaceHolder1_ctl00_lblConNoHocKy');
     const payableFee = await page.$eval('#ctl00_ContentPlaceHolder1_ctl00_lblConNoHocKy', (node) => node.innerText);
     oResult.fees.payableFee = payableFee;
     const paidFee = await page.$eval('#ctl00_ContentPlaceHolder1_ctl00_lblDaDongHKOffline', (node) => node.innerText);
@@ -377,9 +378,7 @@ const GetExamSchedule = async (page, oResult) => {
       waitUntil: 'domcontentloaded',
     });
 
-    const table = await page.waitForSelector('#ctl00_ContentPlaceHolder1_ctl00_gvXem', {
-      timeout: 10000,
-    });
+    const table = await page.waitForSelector('#ctl00_ContentPlaceHolder1_ctl00_gvXem');
 
     oResult.examSchedule = {};
     oResult.examSchedule.subjects = [];
