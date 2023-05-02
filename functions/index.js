@@ -413,7 +413,6 @@ app.post('/login', async (req, res) => {
   await mutex.AccquireLock();
   const cleanupCallBack = async () => {
     if (!checkCleanup.isAlreadyCleaned) {
-      await mutex.ReleaseLock();
       await tool.page.close();
       tool.browser.count--;
       if (tool.browser.count == 0) {
@@ -430,6 +429,7 @@ app.post('/login', async (req, res) => {
   const tool = {browser: {}, page: {}};
   const Result = {error: ''};
   await Init(tool);
+  await mutex.ReleaseLock();
   const isSuccess = await Login(tool.page, Result, req.body.id, req.body.pass);
   await cleanupCallBack();
   if (!isSuccess) {
@@ -453,7 +453,6 @@ app.post('/all', async (req, res) => {
   let isSuccess = false;
   const cleanup = async () => {
     if (!checkCleanup.isAlreadyCleaned) {
-      await mutex.ReleaseLock();
       await tool.page.close();
       tool.browser.count--;
       if (tool.browser.count == 0) {
@@ -468,6 +467,7 @@ app.post('/all', async (req, res) => {
   };
   setTimeout(cleanup, 118 * 60 * 1000);
   await Init(tool);
+  await mutex.ReleaseLock();
   isSuccess = await Login(tool.page, Result, req.body.id, req.body.pass);
   if (!isSuccess) {
     if (Result.error == '') {
