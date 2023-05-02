@@ -9,6 +9,7 @@ const app = express();
 
 // The Firebase Admin SDK to access Firestore.
 const admin = require('firebase-admin');
+const {Timestamp} = require('firebase-admin/firestore')
 admin.initializeApp();
 
 // Express middleware that validates Firebase ID Tokens passed in the Authorization HTTP header.
@@ -128,8 +129,16 @@ const mutex = {
         return transaction.get(lockRef).then(async (lockDoc) => {
           const lockResult = lockDoc.get('accquireLock');
           isLock = lockResult;
+          const lockAt = lockDoc.get('lockAt');
+          const now = Timestamp.fromDate(startTime);
+          if (now._seconds - lockAt._seconds > 120 && isLock) {
+            isLock = false;
+            transaction.update(lockRef, {lockAt: now});
+            return;
+          }
           if (!isLock) {
             transaction.update(lockRef, {accquireLock: true});
+            transaction.update(lockRef, {lockAt: now});
           }
         });
       });
