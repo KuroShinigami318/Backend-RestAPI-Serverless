@@ -588,4 +588,4 @@ app.post('/all', async (req, res) => {
 exports.app = functions.runWith({
   timeoutSeconds: 120,
   memory: '1GB',
-}).https.onRequest(app);
+}).region('asia-east1').https.onRequest(app);
