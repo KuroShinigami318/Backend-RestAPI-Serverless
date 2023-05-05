@@ -120,25 +120,35 @@ const MappingSubjectSchedule = (oResult, daysFromSubject, startSlotFromSubject, 
 };
 
 const mutex = {
-  AccquireLock: async () => {
+  AccquireLock: async (id) => {
     const startTime = new Date();
-    const lockRef = admin.firestore().collection('requests').doc('requestLockingSystem');
+    const lockRef = admin.firestore().collection('requests').doc(id);
     let isLock = {};
     const checkLock = async () => {
-      return admin.firestore().runTransaction(async (transaction) => {
-        return transaction.get(lockRef).then(async (lockDoc) => {
-          const lockResult = lockDoc.get('accquireLock');
-          isLock = lockResult;
-          const lockAt = lockDoc.get('lockAt');
+      return await admin.firestore().runTransaction(async (transaction) => {
+        return await transaction.get(lockRef).then(async (lockDoc) => {
           const now = Timestamp.fromDate(startTime);
+          if (!lockDoc.exists) {
+            isLock = false;
+            transaction.set(lockRef, {
+              accquireLock: true,
+              lockAt: now,
+            });
+            return isLock;
+          }
+          const lockResult = await lockDoc.get('accquireLock');
+          isLock = lockResult;
+          const lockAt = await lockDoc.get('lockAt');
           if (now._seconds - lockAt._seconds > 120 && isLock) {
             isLock = false;
             transaction.update(lockRef, {lockAt: now});
-            return;
+            return isLock;
           }
           if (!isLock) {
-            transaction.update(lockRef, {accquireLock: true});
-            transaction.update(lockRef, {lockAt: now});
+            transaction.update(lockRef, {
+              accquireLock: true,
+              lockAt: now,
+            });
           }
         });
       });
@@ -146,18 +156,20 @@ const mutex = {
     do {
       if (Date() - startTime > (118 * 60 * 1000)) {
         console.log('Timeout');
-        mutex.ReleaseLock();
+        await mutex.ReleaseLock();
         break;
       }
       await checkLock();
       await mutex.Sleep(1000);
     } while (isLock);
   },
-  ReleaseLock: async () => {
-    const lockRef = admin.firestore().collection('requests').doc('requestLockingSystem');
+  ReleaseLock: async (id) => {
+    const lockRef = admin.firestore().collection('requests').doc(id);
     return admin.firestore().runTransaction(async (transaction) => {
       return transaction.get(lockRef).then(async (lockDoc) => {
-        transaction.update(lockRef, {accquireLock: false});
+        if (lockDoc.exists) {
+          transaction.update(lockRef, {accquireLock: false});
+        }
       });
     });
   },
@@ -196,12 +208,12 @@ const Init = async (oToolObj) => {
 
 const HasAlreadyLogined = async (page, oError) => {
   try {
-    const checkCondition = await page.waitForSelector('#ctl00_Header1_Logout1_lbtnChangePass', {
+    const checkCondition = await page.waitForSelector('#ctl00_Header1_Logout1_lbtnLogOut', {
       timeout: 10000,
     });
-    // const condition = await checkCondition.evaluate((node) => node.innerText);
-    // const listCondition = ['Thoát', 'Exit'];
-    return checkCondition != null;
+    const condition = await checkCondition.evaluate((node) => node.innerText);
+    const listCondition = ['Thoát', 'Exit'];
+    return IsAny(condition, listCondition);
   } catch (error) {
     functions.logger.error('Error while login: ', error);
     return false;
@@ -425,10 +437,12 @@ const GetExamSchedule = async (page, oResult, id, pass) => {
 app.post('/login', async (req, res) => {
   const startTime = new Date();
   const checkCleanup = {isAlreadyCleaned: false};
-  await mutex.AccquireLock();
+  const id = req.body.id;
+  const pass = req.body.pass;
+  await mutex.AccquireLock(id);
   const cleanupCallBack = async () => {
     if (!checkCleanup.isAlreadyCleaned) {
-      await mutex.ReleaseLock();
+      await mutex.ReleaseLock(id);
       await tool.page.close();
       tool.browser.count--;
       if (tool.browser.count == 0) {
@@ -445,7 +459,7 @@ app.post('/login', async (req, res) => {
   const tool = {browser: {}, page: {}};
   const Result = {error: ''};
   await Init(tool);
-  const isSuccess = await Login(tool.page, Result, req.body.id, req.body.pass);
+  const isSuccess = await Login(tool.page, Result, id, pass);
   await cleanupCallBack();
   if (!isSuccess) {
     if (Result.error == '') {
@@ -461,14 +475,16 @@ app.post('/login', async (req, res) => {
 app.post('/all', async (req, res) => {
   const startTime = new Date();
   const checkCleanup = {isAlreadyCleaned: false};
-  await mutex.AccquireLock();
+  const id = req.body.id;
+  const pass = req.body.pass;
+  await mutex.AccquireLock(id);
   const tool = {browser: {}, page: {}};
   const Result = {error: ''};
   let returnError = 1;
   let isSuccess = false;
   const cleanup = async () => {
     if (!checkCleanup.isAlreadyCleaned) {
-      await mutex.ReleaseLock();
+      await mutex.ReleaseLock(id);
       await tool.page.close();
       tool.browser.count--;
       if (tool.browser.count == 0) {
@@ -483,7 +499,7 @@ app.post('/all', async (req, res) => {
   };
   setTimeout(cleanup, 118 * 60 * 1000);
   await Init(tool);
-  isSuccess = await Login(tool.page, Result, req.body.id, req.body.pass);
+  isSuccess = await Login(tool.page, Result, id, pass);
   if (!isSuccess) {
     if (Result.error == '') {
       res.status(401).json({'Result': 'Login failed! invalid id or password!'});
@@ -518,9 +534,9 @@ app.post('/all', async (req, res) => {
     }
     return CleanupAndReturn(cleanup, returnError);
   }
-  Result.user.studentCode = req.body.id;
+  Result.user.studentCode = id;
 
-  isSuccess = await GetExamSchedule(tool.page, Result, req.body.id, req.body.pass);
+  isSuccess = await GetExamSchedule(tool.page, Result, id, pass);
   if (!isSuccess) {
     if (Result.error == '') {
       res.status(401).json({'Result': 'Error while get exam schedule! Should not be occured. Maybe there\'s nothing'});
@@ -532,7 +548,7 @@ app.post('/all', async (req, res) => {
     return CleanupAndReturn(cleanup, returnError);
   }
 
-  isSuccess = await GetTuitionFees(tool.page, Result, req.body.id, req.body.pass);
+  isSuccess = await GetTuitionFees(tool.page, Result, id, pass);
   if (!isSuccess) {
     if (Result.error == '') {
       res.status(401).json({'Result': 'Error while get Tuition Fees! Should not be occured. Maybe there\'s nothing'});
