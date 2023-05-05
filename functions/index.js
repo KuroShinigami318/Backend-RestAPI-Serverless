@@ -263,6 +263,24 @@ const GetTimeTable = async (page, oResult) => {
     const noteArray = noteText.split(' ');
     let startDate = noteArray[noteArray.length - 1];
     startDate = moment(startDate + '+07:00', 'DD/MM/YYYYZ');
+    const checkDate = startDate.subtract(3, 'w');
+    if (moment().diff(checkDate, 'days') < 0) {
+      const option = (await page.$x(
+        '//*[@id = "ctl00_ContentPlaceHolder1_ctl00_ddlChonNHHK"]/option[2]',
+      ))[0];
+      const value = await option.evaluate((node) => node.value);
+      await Promise.all([
+        page.waitForNavigation(),
+        page.select('#ctl00_ContentPlaceHolder1_ctl00_ddlChonNHHK', value),
+      ]);
+      const note = await page.waitForSelector('#ctl00_ContentPlaceHolder1_ctl00_lblNote', {
+        timeout: 10000,
+      });
+      const noteText = await note.evaluate((node) => node.innerText);
+      const noteArray = noteText.split(' ');
+      startDate = noteArray[noteArray.length - 1];
+      startDate = moment(startDate + '+07:00', 'DD/MM/YYYYZ');
+    }
     const startDateJSON = startDate.toISOString();
     const endDateJSON = startDate.add(15, 'w').toISOString();
     oResult.ttb.startDate = startDateJSON;
