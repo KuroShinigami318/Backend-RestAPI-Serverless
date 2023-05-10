@@ -66,7 +66,8 @@ def Encrypt(message):
 
 def Login(url, idToken, idUser, pwd):
     startTime = datetime.datetime.now()
-    header = {"Authorization": "Bearer " + idToken}
+    header = {"Authorization": "Bearer " + idToken,
+              "Content-Type": "application/json"}
     data = {"id": idUser, "pass": pwd}
     data = json.dumps(data)
     r = requests.post(url=url, headers=header, data=data)
@@ -99,8 +100,8 @@ def IsJSON(jsonData):
 curDir = os.getcwd()
 if (GetAuth(curDir + '/auth.json')):
     data = ReadFromJSON(curDir + '/auth.json')
-    t1 = threading.Thread(target=Login, args=(backend_url + "/login", data['idToken'], "3118412027", "Gk192000"))
-    t2 = threading.Thread(target=Login, args=(backend_url + "/all", data['idToken'], "3118412027", "Gk192000"))
+    t1 = threading.Thread(target=Login, args=(backend_url + "/login", data['idToken'], "3118412027", [57, 170, 240, 170, 214, 153, 108, 250]))
+    t2 = threading.Thread(target=Login, args=(backend_url + "/all", data['idToken'], "3118412027", [57, 170, 240, 170, 214, 153, 108, 250]))
 
     # starting thread 1
     t1.start()

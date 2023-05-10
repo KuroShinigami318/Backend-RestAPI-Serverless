@@ -456,7 +456,7 @@ const GetExamSchedule = async (page, oResult, id, pass) => {
 app.post('/login', async (req, res) => {
   const startTime = new Date();
   const checkCleanup = {isAlreadyCleaned: false};
-  const body = JSON.parse(req.body);
+  const body = req.body;
   const id = body.id;
   const pass = decryptAES(body.pass);
   await mutex.AccquireLock(id);
@@ -495,7 +495,7 @@ app.post('/login', async (req, res) => {
 app.post('/all', async (req, res) => {
   const startTime = new Date();
   const checkCleanup = {isAlreadyCleaned: false};
-  const body = JSON.parse(req.body);
+  const body = req.body;
   const id = body.id;
   const pass = decryptAES(body.pass);
   await mutex.AccquireLock(id);
