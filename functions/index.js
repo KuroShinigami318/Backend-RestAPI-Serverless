@@ -4,6 +4,7 @@ const cookieParser = require('cookie-parser')();
 const cors = require('cors')({origin: true});
 const puppeteer = require('puppeteer');
 const moment = require('moment');
+const crypto = require('crypto');
 
 const app = express();
 
@@ -455,8 +456,9 @@ const GetExamSchedule = async (page, oResult, id, pass) => {
 app.post('/login', async (req, res) => {
   const startTime = new Date();
   const checkCleanup = {isAlreadyCleaned: false};
-  const id = req.body.id;
-  const pass = req.body.pass;
+  const body = JSON.parse(req.body);
+  const id = body.id;
+  const pass = decryptAES(body.pass);
   await mutex.AccquireLock(id);
   const cleanupCallBack = async () => {
     if (!checkCleanup.isAlreadyCleaned) {
@@ -493,8 +495,9 @@ app.post('/login', async (req, res) => {
 app.post('/all', async (req, res) => {
   const startTime = new Date();
   const checkCleanup = {isAlreadyCleaned: false};
-  const id = req.body.id;
-  const pass = req.body.pass;
+  const body = JSON.parse(req.body);
+  const id = body.id;
+  const pass = decryptAES(body.pass);
   await mutex.AccquireLock(id);
   const tool = {browser: {}, page: {}};
   const Result = {error: ''};
@@ -555,32 +558,28 @@ app.post('/all', async (req, res) => {
   Result.user.studentCode = id;
 
   isSuccess = await GetExamSchedule(tool.page, Result, id, pass);
-  if (!isSuccess) {
-    if (Result.error == '') {
-      res.status(401).json({'Result': 'Error while get exam schedule! Should not be occured. Maybe there\'s nothing'});
-      returnError = 0;
-    } else {
-      res.status(401).json({'Result': `Fatal Error: ${JSON.stringify(Result.error)}`});
-      returnError = -1;
-    }
-    return CleanupAndReturn(cleanup, returnError);
-  }
 
   isSuccess = await GetTuitionFees(tool.page, Result, id, pass);
-  if (!isSuccess) {
-    if (Result.error == '') {
-      res.status(401).json({'Result': 'Error while get Tuition Fees! Should not be occured. Maybe there\'s nothing'});
-      returnError = 0;
-    } else {
-      res.status(401).json({'Result': `Fatal Error: ${JSON.stringify(Result.error)}`});
-      returnError = -1;
-    }
-    return CleanupAndReturn(cleanup, returnError);
-  }
 
   res.status(200).json(Result);
   return CleanupAndReturn(cleanup, returnError);
 });
+
+const decryptAES = (ciphertext) => {
+  const keyBytes = Buffer.from([71, 196, 224, 77, 66, 145, 169, 76, 2, 133, 239, 154, 57, 226, 248, 133]);
+  const nonce = Buffer.from([215, 6, 250, 248, 50, 225, 252, 129, 78, 248, 178, 28, 93, 245, 154, 246]);
+  const ciphertextBytes = Buffer.from(ciphertext);
+  const cipher = crypto.createDecipheriv(
+    'aes-128-ctr',
+    keyBytes,
+    nonce,
+  );
+
+  let decrypted = cipher.update(ciphertextBytes);
+  decrypted += cipher.final();
+
+  return decrypted;
+};
 
 // This HTTPS endpoint can only be accessed by your Firebase Users.
 // Requests need to be authorized by providing an `Authorization` HTTP header

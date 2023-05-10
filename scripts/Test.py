@@ -4,8 +4,9 @@ import subprocess
 import datetime
 import os
 import threading
+from Crypto.Cipher import AES
 
-backend_url = "http://127.0.0.1:5001/backend-restapi-5ee97/us-central1/app"
+backend_url = "http://127.0.0.1:5001/backend-restapi-5ee97/asia-east1/app"
 api_key = 'AIzaSyBDPRtq6-RLD713Im-BXwj4Fnz0O0A_Pkw'
 
 def GetAuth(filePath):
@@ -54,10 +55,20 @@ def UpdateExpireDate(updateTime, filePath = None, data = None):
     jsonData = json.dumps(data)
     WriteToJSON('auth.json', jsonData)
 
+def Encrypt(message):
+   key = bytes(bytearray([71, 196, 224, 77, 66, 145, 169, 76, 2, 133, 239, 154, 57, 226, 248, 133]))
+   nonce = bytes(bytearray([215, 6, 250, 248, 50, 225, 252, 129, 78, 248, 178, 28, 93, 245, 154, 246]))
+   cipher = AES.new(key, AES.MODE_CTR, nonce=nonce)
+   print(list(cipher.nonce))
+   ciphertext = cipher.encrypt(bytes(message.encode('utf-8')))
+   print(list(ciphertext))
+   return list(ciphertext)
+
 def Login(url, idToken, idUser, pwd):
     startTime = datetime.datetime.now()
     header = {"Authorization": "Bearer " + idToken}
     data = {"id": idUser, "pass": pwd}
+    data = json.dumps(data)
     r = requests.post(url=url, headers=header, data=data)
     finishTime = datetime.datetime.now()
     elapsed = finishTime - startTime
