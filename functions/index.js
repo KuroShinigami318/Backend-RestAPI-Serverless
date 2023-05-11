@@ -60,13 +60,28 @@ const validateFirebaseIdToken = async (req, res, next) => {
   }
 };
 
+const validateSupportContentType = (req, res, next) => {
+  if (!req.headers['content-type']) {
+    functions.logger.error('Header should provide Content-Type');
+    res.status(403).send('Header should provide content-type! Did you forget to add Content-Type in header?');
+    return;
+  }
+  const contentType = req.headers['content-type'].split('application/')[1];
+  switch (contentType) {
+    case 'json':
+      next();
+      return;
+    default:
+      functions.logger.error(`Unsupported or Invalid Content-Type! ${contentType}`);
+      res.status(403).send('Unsupported or Invalid Content-Type! Pkease contact API Provider.');
+      return;
+  }
+};
+
 app.use(cors);
 app.use(cookieParser);
 app.use(validateFirebaseIdToken);
-app.get('/hello', (req, res) => {
-  // @ts-ignore
-  res.status(200).json({'name': `${req.user.name}`});
-});
+app.use(validateSupportContentType);
 
 const sBrowser = {
   instance: '',
@@ -398,7 +413,9 @@ const GetTuitionFees = async (page, oResult, id, pass) => {
       });
     }
 
-    await page.waitForSelector('#ctl00_ContentPlaceHolder1_ctl00_lblConNoHocKy');
+    await page.waitForSelector('#ctl00_ContentPlaceHolder1_ctl00_lblConNoHocKy', {
+      timeout: 10000,
+    });
     const payableFee = await page.$eval('#ctl00_ContentPlaceHolder1_ctl00_lblConNoHocKy', (node) => node.innerText);
     oResult.fees.payableFee = payableFee;
     const paidFee = await page.$eval('#ctl00_ContentPlaceHolder1_ctl00_lblDaDongHKOffline', (node) => node.innerText);
@@ -425,7 +442,9 @@ const GetExamSchedule = async (page, oResult, id, pass) => {
       });
     }
 
-    const table = await page.waitForSelector('#ctl00_ContentPlaceHolder1_ctl00_gvXem');
+    const table = await page.waitForSelector('#ctl00_ContentPlaceHolder1_ctl00_gvXem', {
+      timeout: 10000,
+    });
 
     oResult.examSchedule = {};
     oResult.examSchedule.subjects = [];
